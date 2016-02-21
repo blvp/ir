@@ -73,3 +73,57 @@ func TestObtainFile(t *testing.T) {
 	assert.Equal(t, 8, len(words))
 	assert.Equal(t, 8, len(wordFreq))
 }
+
+func TestCompress(t *testing.T) {
+
+	testCases := map[string][]string{
+		//prefixed fully first word
+		"1a*2&a2&b3&cc": []string{
+			"a",
+			"aa",
+			"ab",
+			"acc",
+		},
+		//withoutPrefix
+		"4*aaaa4&bbbb4&cccc4&dddd": []string{
+			"aaaa",
+			"bbbb",
+			"cccc",
+			"dddd",
+		},
+		//prefixed part of first word
+		"4aa*aa4&bb4&cc4&dd": []string{
+			"aaaa",
+			"aabb",
+			"aacc",
+			"aadd",
+		},
+	}
+	for expected, words := range testCases {
+		assert.Equal(t, expected, Compress(words))
+	}
+
+}
+
+type StringPair struct {
+	first, second string
+}
+
+func NewStringPair(first, second string) StringPair {
+	return StringPair{first:first, second: second}
+}
+
+func TestMatchIndex(t *testing.T) {
+
+	testCases := map[StringPair]int{
+		NewStringPair("aa", "cc"): 0,
+		NewStringPair("aa", "aab"): 2,
+		NewStringPair("aaaa", "aa"): 2,
+		NewStringPair("", ""): 0,
+		NewStringPair("", "asd"): 0,
+		NewStringPair("asd", ""): 0,
+	}
+	for pair, expected := range testCases {
+		assert.Equal(t, expected, matchIndex(pair.first, pair.second))
+	}
+}

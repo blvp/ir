@@ -27,11 +27,10 @@ type Word struct {
 func (d Dictionary) TermLookup(term string) *Word {
 	l := 0
 	r := len(d.PtrBlock)
-	foundBlockHeader := ""
 	for l < r {
 		middle := (r + l) / 2
 		ptr := d.PtrBlock[middle].Ptr
-		foundBlockHeader = d.FindBlockHeader(ptr)
+		foundBlockHeader := d.FindBlockHeader(ptr)
 		if foundBlockHeader < term {
 			l = middle + 1
 		} else {
@@ -91,6 +90,45 @@ func NewDictionary(words []string, docFreq map[string]int, blockSize int) *Dicti
 
 	return &Dictionary{DictAsString: buffer, BlockSize:blockSize, PtrBlock:blocks}
 
+}
+
+func Compress(words []string) string {
+	firstWord := words[0]
+	prefixLen := 1 << 32
+	for _, word := range words {
+		prefixLen = int(math.Min(float64(matchIndex(firstWord, word)), float64(prefixLen)))
+	}
+	prefix := string([]rune(firstWord)[0: prefixLen])
+	firstWordLen := utf8.RuneCountInString(firstWord)
+	buffer := strconv.Itoa(firstWordLen) + prefix + "*" + string([]rune(firstWord)[prefixLen:firstWordLen])
+	for _, word := range words[1:] {
+		wordLen := utf8.RuneCountInString(word)
+		buffer += strconv.Itoa(wordLen)
+		buffer += "&"
+		buffer += string([]rune(word)[prefixLen: wordLen])
+	}
+	return buffer
+}
+
+func matchIndex(first, second string) int {
+	//we should find an index of the second best match element
+	//at least first length always lt second
+	//so we should just iterate over and count until string does not match
+	if first == "" || second == "" {
+		return 0
+	}
+	firstArr := []rune(first)
+	secondArr := []rune(second)
+	n := int(math.Min(float64(len(firstArr)), float64(len(secondArr))))
+	startPos := 0
+	for i := 0; i < n; i += 1 {
+		if string(firstArr[i]) == string(secondArr[i]) {
+			startPos += 1
+		} else {
+			break;
+		}
+	}
+	return startPos
 }
 
 func splitIntoChunks(arr []string, chunkSize int) [][]string {
