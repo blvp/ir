@@ -26,7 +26,7 @@ func StubDictionary() *Dictionary {
 
 
 func TestSplitIntoChunks(t *testing.T) {
-	assert.Equal(t, 3, len(SplitIntoChunks([]string{
+	assert.Equal(t, 3, len(splitIntoChunks([]string{
 		"test",
 		"myday",
 		"word",

@@ -1,9 +1,6 @@
 package main
 import (
 	"regexp"
-	"strings"
-	"io/ioutil"
-	"fmt"
 	"github.com/bradfitz/iter"
 	"unicode/utf8"
 	"strconv"
@@ -20,6 +17,11 @@ type Dictionary struct {
 type Block struct {
 	Ptr   int
 	Words []Word
+}
+
+type Word struct {
+	DocFreq        int
+	PostingListPtr *int // Id of documents or Inverse Document Freq
 }
 
 func (d Dictionary) TermLookup(term string) *Word {
@@ -70,49 +72,13 @@ func (d Dictionary) FindBlockHeader(ptr int) string {
 	return string(rightSide[wordLenStrLen: wordLen + wordLenStrLen])
 }
 
-type Word struct {
-	DocFreq        int
-	PostingListPtr *int // Id of documents or Inverse Document Freq
-}
-
-func main() {
-	words, wordFreq := ObtainFile("test.txt")
-	dict := NewDictionary(words, wordFreq, 4)
-	fmt.Println(dict.TermLookup("сказал"))
-}
-func ObtainFile(filePath string) ([]string, map[string]int) {
-	replacer := strings.NewReplacer(",", "", ":", "", ";", "", "\"", "", "'", "", "-", "", "[", "", "]", "")
-	file, _ := ioutil.ReadFile(filePath)
-	entireFile := strings.ToLower(string(file))
-	entireFile = replacer.Replace(entireFile)
-
-	documents := regexp.MustCompile("[.!?]").Split(entireFile, -1)
-	stemmer := regexp.MustCompile("[[:space:]]")
-	uniqueWords := map[string]string{}
-	wordFreq := map[string]int{}
-	for _, doc := range documents {
-		words := stemmer.Split(doc, -1)
-		for _, word := range words {
-			if len([]rune(word)) != 0 {
-				uniqueWords[word] = word
-				wordFreq[word] += 1
-			}
-		}
-	}
-	words := make([]string, 0, len(uniqueWords))
-
-	for _, word := range uniqueWords {
-		words = append(words, word)
-	}
-	return words, wordFreq
-}
 
 func NewDictionary(words []string, docFreq map[string]int, blockSize int) *Dictionary {
 	sort.Strings(words)
 	buffer := ""
 	blocks := []Block{}
 
-	for _, yo := range SplitIntoChunks(words, blockSize) {
+	for _, yo := range splitIntoChunks(words, blockSize) {
 		wordInBlock := make([]Word, 0, len(yo))
 		blockPtr := utf8.RuneCountInString(buffer)
 		for _, word := range yo {
@@ -126,7 +92,8 @@ func NewDictionary(words []string, docFreq map[string]int, blockSize int) *Dicti
 	return &Dictionary{DictAsString: buffer, BlockSize:blockSize, PtrBlock:blocks}
 
 }
-func SplitIntoChunks(arr []string, chunkSize int) [][]string {
+
+func splitIntoChunks(arr []string, chunkSize int) [][]string {
 	arrLen := len(arr)
 	chunkNum := arrLen / chunkSize + 1
 	result := make([][]string, 0, chunkNum)
