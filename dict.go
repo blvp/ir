@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sort"
 	"math"
+	"strings"
+	"fmt"
 )
 
 type Dictionary struct {
@@ -27,20 +29,24 @@ type Word struct {
 func (d Dictionary) TermLookup(term string) *Word {
 	l := 0
 	r := len(d.PtrBlock)
+	endOfPrefixReplacer := strings.NewReplacer("*", "")
 	for l < r {
 		middle := (r + l) / 2
 		ptr := d.PtrBlock[middle].Ptr
 		foundBlockHeader := d.FindBlockHeader(ptr)
-		if foundBlockHeader < term {
+		cleanHeader := endOfPrefixReplacer.Replace(foundBlockHeader)
+		if cleanHeader < term {
 			l = middle + 1
-		} else {
+		} else if cleanHeader > term {
 			r = middle - 1
+		} else {
+			r = middle
+			l = middle
 		}
 	}
 
 	block := d.PtrBlock[int(math.Min(float64(l), float64(len(d.PtrBlock) - 1)))]
 	words := d.DecodeBlock(block)
-
 	for i, word := range words {
 		if word == term {
 			return &block.Words[i]
@@ -52,23 +58,46 @@ func (d Dictionary) TermLookup(term string) *Word {
 func (d Dictionary) DecodeBlock(block Block) []string {
 	result := []string{}
 	ptr := block.Ptr
-	for _ = range iter.N(d.BlockSize) {
-		word := d.FindBlockHeader(ptr)
-		result = append(result, word)
-		wordLen := utf8.RuneCountInString(word)
-		wordLenStr := strconv.Itoa(wordLen)
-		ptr += utf8.RuneCountInString(wordLenStr) + wordLen
+	prefix := d.ResolvePrefix(block)
+	prefixReplacer := strings.NewReplacer("&", prefix, "*", "")
+	prefixLen := utf8.RuneCountInString(prefix)
+	for i := range iter.N(d.BlockSize) {
+		//not always last block is block sized
+		if ptr == utf8.RuneCountInString(d.DictAsString) {
+			break
+		}
+		rightSide := []rune(d.DictAsString)[ptr:]
+		wordLenStr := regexp.MustCompile("[0-9]+").FindString(string(rightSide))
+		minusPrefix := prefixLen
+		if i == 0 {
+			minusPrefix = 0
+		}
+		wordLen, _ := strconv.Atoi(wordLenStr)
+		wordLenStrLen := utf8.RuneCountInString(wordLenStr)
+		result = append(result, prefixReplacer.Replace(
+			// offset of wordLen and then we decide that & symbol is prefixLen weight
+			string(rightSide[wordLenStrLen:wordLen + wordLenStrLen - minusPrefix + 1])))
+		fmt.Println(result)
+		ptr += wordLen + wordLenStrLen - minusPrefix + 1
 	}
 
 	return result
+}add
+func (d Dictionary) ResolvePrefix(block Block) string {
+	ptr := block.Ptr
+	rightSide := []rune(d.DictAsString)[ptr: ]
+	wordLenStr := regexp.MustCompile("[0-9]+").FindString(string(rightSide))
+	wordLenStrLen := utf8.RuneCountInString(wordLenStr)
+	return string(rightSide[wordLenStrLen: strings.Index(string(rightSide), "*")])
 }
 
 func (d Dictionary) FindBlockHeader(ptr int) string {
-	rightSide := []rune(d.DictAsString)[ptr: utf8.RuneCountInString(d.DictAsString)]
+	rightSide := []rune(d.DictAsString)[ptr: ]
 	wordLenStr := regexp.MustCompile("[0-9]+").FindString(string(rightSide))
 	wordLen, _ := strconv.Atoi(wordLenStr)
 	wordLenStrLen := utf8.RuneCountInString(wordLenStr)
-	return string(rightSide[wordLenStrLen: wordLen + wordLenStrLen])
+	word := string(rightSide[wordLenStrLen: wordLen + wordLenStrLen + 1])
+	return word
 }
 
 
@@ -82,9 +111,8 @@ func NewDictionary(words []string, docFreq map[string]int, blockSize int) *Dicti
 		blockPtr := utf8.RuneCountInString(buffer)
 		for _, word := range yo {
 			wordInBlock = append(wordInBlock, Word{DocFreq:docFreq[word], PostingListPtr: nil})
-			buffer += strconv.Itoa(utf8.RuneCountInString(word))
-			buffer += word
 		}
+		buffer += Compress(yo)
 		blocks = append(blocks, Block{Ptr: blockPtr, Words: wordInBlock})
 	}
 

@@ -14,7 +14,18 @@ func main() {
 }
 
 func ObtainFile(filePath string) ([]string, map[string]int) {
-	replacer := strings.NewReplacer(",", "", ":", "", ";", "", "\"", "", "'", "", "-", "", "[", "", "]", "")
+	replacer := strings.NewReplacer(
+		",", "",
+		":", "",
+		";", "",
+		"\"", "",
+		"'", "",
+		"-", "",
+		"[", "",
+		"]", "",
+		"“", "",
+		"”", "",
+	)
 	file, _ := ioutil.ReadFile(filePath)
 	entireFile := strings.ToLower(string(file))
 	entireFile = replacer.Replace(entireFile)

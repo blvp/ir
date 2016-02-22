@@ -2,6 +2,7 @@ package main
 import (
 	"testing"
 	"github.com/stretchr/testify/assert"
+	"fmt"
 )
 
 func StubDictionary() *Dictionary {
@@ -15,7 +16,10 @@ func StubDictionary() *Dictionary {
 		"oook",
 		"love",
 	}
+	return StubDictionaryWords(words...)
+}
 
+func StubDictionaryWords(words ...string) *Dictionary {
 	wordFreq := map[string]int{}
 	for _, word := range words {
 		wordFreq[word] += 1
@@ -23,7 +27,6 @@ func StubDictionary() *Dictionary {
 
 	return NewDictionary(words, wordFreq, 4)
 }
-
 
 func TestSplitIntoChunks(t *testing.T) {
 	assert.Equal(t, 3, len(splitIntoChunks([]string{
@@ -42,9 +45,9 @@ func TestSplitIntoChunks(t *testing.T) {
 
 func TestDictionaryCreate(t *testing.T) {
 	dictionary := StubDictionary()
-	assert.Equal(t, "6change4love8machalka5myday4oook4test4word2yo", dictionary.DictAsString)
+	assert.Equal(t, "6*change4&love8&machalka5&myday4*oook4&test4&word2&yo", dictionary.DictAsString)
 	assert.Equal(t, 0, dictionary.PtrBlock[0].Ptr)
-	assert.Equal(t, 27, dictionary.PtrBlock[1].Ptr)
+	assert.Equal(t, 31, dictionary.PtrBlock[1].Ptr)
 }
 
 func TestDictionaryTermLookup(t *testing.T) {
@@ -52,18 +55,41 @@ func TestDictionaryTermLookup(t *testing.T) {
 	lookup := dictionary.TermLookup("test")
 	assert.Equal(t, 1, lookup.DocFreq)
 	assert.Empty(t, lookup.PostingListPtr)
+
+
+	dict := StubDictionaryWords(
+		"testa",
+		"testba",
+		"testbb",
+		"testc",
+		"aaaa",
+		"bbbb",
+		"cccc",
+		"dddd",
+	)
+
+	assert.Equal(t, 1, dict.TermLookup("testba").DocFreq)
 }
 
 func TestDictionaryFindWord(t *testing.T) {
-	assert.Equal(t, "change", StubDictionary().FindBlockHeader(0))
-	assert.Equal(t, "oook", StubDictionary().FindBlockHeader(27))
+	assert.Equal(t, "*change", StubDictionary().FindBlockHeader(0))
+	assert.Equal(t, "*oook", StubDictionary().FindBlockHeader(31))
 }
 
 func TestDictionaryDecodeBlock(t *testing.T) {
-	dictionary := StubDictionary()
-	wordsInBlock := dictionary.DecodeBlock(dictionary.PtrBlock[0])
+	dict := StubDictionaryWords(
+		"testa",
+		"testaa",
+		"testba",
+		"testc",
+		"aaaa",
+		"bbbb",
+		"cccc",
+		"dddd",
+	)
+	wordsInBlock := dict.DecodeBlock(dict.PtrBlock[1])
 	assert.Equal(t, 4, len(wordsInBlock))
-	assert.Equal(t, []string{"change", "love", "machalka", "myday"}, wordsInBlock)
+	assert.Equal(t, []string{"testa", "testaa", "testba", "testc"}, wordsInBlock)
 }
 
 func TestObtainFile(t *testing.T) {
@@ -126,4 +152,18 @@ func TestMatchIndex(t *testing.T) {
 	for pair, expected := range testCases {
 		assert.Equal(t, expected, matchIndex(pair.first, pair.second))
 	}
+}
+
+func TestForSmallCollection(t *testing.T) {
+	words, wordFreq := ObtainFile("test.txt")
+	dict := NewDictionary(words, wordFreq, 4)
+	fmt.Println(dict.DictAsString)
+//	assert.Equal(t, 2, dict.TermLookup("will").DocFreq)
+	for k, v := range wordFreq {
+		fmt.Println(k)
+		word := dict.TermLookup(k)
+		assert.NotEmpty(t, word)
+		assert.Equal(t, v, word.DocFreq)
+	}
+
 }
