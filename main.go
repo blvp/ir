@@ -1,17 +1,9 @@
 package main
 import (
-	"fmt"
 	"strings"
 	"io/ioutil"
 	"regexp"
 )
-
-
-func main() {
-	words, wordFreq := ObtainFile("test.txt")
-	dict := NewDictionary(words, wordFreq, 4)
-	fmt.Println(dict.TermLookup("сказал"))
-}
 
 func ObtainFile(filePath string) ([]string, map[string]int) {
 	replacer := strings.NewReplacer(
