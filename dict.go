@@ -7,7 +7,6 @@ import (
 	"sort"
 	"math"
 	"strings"
-	"fmt"
 )
 
 type Dictionary struct {
@@ -37,6 +36,16 @@ func (d Dictionary) TermLookup(term string) *Word {
 		cleanHeader := endOfPrefixReplacer.Replace(foundBlockHeader)
 		if cleanHeader < term {
 			l = middle + 1
+			// just because we could find word ib block
+			// in case of aa ab ac ad | ae af ah ag
+			// we could check aa and go to ae and stop
+			// and we search for ad we could not jump back
+			// actually we get a bit slower than log(n) speed
+			// we get k * log(n)/2 approximately, where k is blocksize
+			word := d.FindTermInBlock(term, middle)
+			if word != nil {
+				return word
+			}
 		} else if cleanHeader > term {
 			r = middle - 1
 		} else {
@@ -45,7 +54,11 @@ func (d Dictionary) TermLookup(term string) *Word {
 		}
 	}
 
-	block := d.PtrBlock[int(math.Min(float64(l), float64(len(d.PtrBlock) - 1)))]
+	return d.FindTermInBlock(term, int(math.Min(float64(l), float64(len(d.PtrBlock) - 1))))
+}
+
+func (d Dictionary) FindTermInBlock(term string, blockPtr int) *Word {
+	block := d.PtrBlock[blockPtr]
 	words := d.DecodeBlock(block)
 	for i, word := range words {
 		if word == term {
@@ -77,12 +90,11 @@ func (d Dictionary) DecodeBlock(block Block) []string {
 		result = append(result, prefixReplacer.Replace(
 			// offset of wordLen and then we decide that & symbol is prefixLen weight
 			string(rightSide[wordLenStrLen:wordLen + wordLenStrLen - minusPrefix + 1])))
-		fmt.Println(result)
 		ptr += wordLen + wordLenStrLen - minusPrefix + 1
 	}
 
 	return result
-}add
+}
 func (d Dictionary) ResolvePrefix(block Block) string {
 	ptr := block.Ptr
 	rightSide := []rune(d.DictAsString)[ptr: ]

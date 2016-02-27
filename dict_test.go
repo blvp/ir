@@ -2,7 +2,6 @@ package main
 import (
 	"testing"
 	"github.com/stretchr/testify/assert"
-	"fmt"
 )
 
 func StubDictionary() *Dictionary {
@@ -157,10 +156,7 @@ func TestMatchIndex(t *testing.T) {
 func TestForSmallCollection(t *testing.T) {
 	words, wordFreq := ObtainFile("test.txt")
 	dict := NewDictionary(words, wordFreq, 4)
-	fmt.Println(dict.DictAsString)
-//	assert.Equal(t, 2, dict.TermLookup("will").DocFreq)
 	for k, v := range wordFreq {
-		fmt.Println(k)
 		word := dict.TermLookup(k)
 		assert.NotEmpty(t, word)
 		assert.Equal(t, v, word.DocFreq)
