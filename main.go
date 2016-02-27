@@ -3,8 +3,11 @@ import (
 	"strings"
 	"io/ioutil"
 	"regexp"
+	"fmt"
 )
-
+func main() {
+	fmt.Println("Hello")
+}
 func ObtainFile(filePath string) ([]string, map[string]int) {
 	replacer := strings.NewReplacer(
 		",", "",
