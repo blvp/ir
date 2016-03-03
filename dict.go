@@ -13,6 +13,7 @@ type Dictionary struct {
 	PtrBlock     []Block
 	BlockSize    int
 	DictAsString string
+	PostingLists PairList
 }
 
 type Block struct {
@@ -22,7 +23,7 @@ type Block struct {
 
 type Word struct {
 	DocFreq        int
-	PostingListPtr *int // Id of documents or Inverse Document Freq
+	PostingListPtr int // Id of documents or Inverse Document Freq
 }
 
 func (d Dictionary) TermLookup(term string) *Word {
@@ -113,22 +114,22 @@ func (d Dictionary) FindBlockHeader(ptr int) string {
 }
 
 
-func NewDictionary(words []string, docFreq map[string]int, blockSize int) *Dictionary {
+func NewDictionary(words []string, docFreq map[string]int, blockSize int, postringLists map[string][]int) *Dictionary {
 	sort.Strings(words)
+	postingsList := sortMap(postringLists)
 	buffer := ""
 	blocks := []Block{}
-
-	for _, yo := range splitIntoChunks(words, blockSize) {
+	for blockId, yo := range splitIntoChunks(words, blockSize) {
 		wordInBlock := make([]Word, 0, len(yo))
 		blockPtr := utf8.RuneCountInString(buffer)
-		for _, word := range yo {
-			wordInBlock = append(wordInBlock, Word{DocFreq:docFreq[word], PostingListPtr: nil})
+		for wordId, word := range yo {
+			wordInBlock = append(wordInBlock, Word{DocFreq:docFreq[word], PostingListPtr: (wordId + blockId * blockSize)})
 		}
 		buffer += Compress(yo)
 		blocks = append(blocks, Block{Ptr: blockPtr, Words: wordInBlock})
 	}
 
-	return &Dictionary{DictAsString: buffer, BlockSize:blockSize, PtrBlock:blocks}
+	return &Dictionary{DictAsString: buffer, BlockSize:blockSize, PtrBlock:blocks, PostingLists: postingsList}
 
 }
 

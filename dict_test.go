@@ -2,6 +2,7 @@ package main
 import (
 	"testing"
 	"github.com/stretchr/testify/assert"
+	"fmt"
 )
 
 func StubDictionary() *Dictionary {
@@ -20,11 +21,12 @@ func StubDictionary() *Dictionary {
 
 func StubDictionaryWords(words ...string) *Dictionary {
 	wordFreq := map[string]int{}
-	for _, word := range words {
+	postings := map[string][]int{}
+	for id, word := range words {
 		wordFreq[word] += 1
+		postings[word] = []int{id}
 	}
-
-	return NewDictionary(words, wordFreq, 4)
+	return NewDictionary(words, wordFreq, 4, postings)
 }
 
 func TestSplitIntoChunks(t *testing.T) {
@@ -47,13 +49,14 @@ func TestDictionaryCreate(t *testing.T) {
 	assert.Equal(t, "6*change4&love8&machalka5&myday4*oook4&test4&word2&yo", dictionary.DictAsString)
 	assert.Equal(t, 0, dictionary.PtrBlock[0].Ptr)
 	assert.Equal(t, 31, dictionary.PtrBlock[1].Ptr)
+	assert.Equal(t, 8, len(dictionary.PostingLists))
 }
 
 func TestDictionaryTermLookup(t *testing.T) {
 	dictionary := StubDictionary()
 	lookup := dictionary.TermLookup("test")
 	assert.Equal(t, 1, lookup.DocFreq)
-	assert.Empty(t, lookup.PostingListPtr)
+	assert.NotEmpty(t, lookup.PostingListPtr)
 
 
 	dict := StubDictionaryWords(
@@ -92,11 +95,12 @@ func TestDictionaryDecodeBlock(t *testing.T) {
 }
 
 func TestObtainFile(t *testing.T) {
-	words, wordFreq := ObtainFile("test_test.txt")
+	words, wordFreq, postingList := ObtainFile("test_test.txt")
 	assert.NotEmpty(t, words)
 	assert.NotEmpty(t, wordFreq)
 	assert.Equal(t, 8, len(words))
 	assert.Equal(t, 8, len(wordFreq))
+	assert.Equal(t, 8, len(postingList))
 }
 
 func TestCompress(t *testing.T) {
@@ -154,12 +158,13 @@ func TestMatchIndex(t *testing.T) {
 }
 
 func TestForSmallCollection(t *testing.T) {
-	words, wordFreq := ObtainFile("test.txt")
-	dict := NewDictionary(words, wordFreq, 4)
+	words, wordFreq, postingLists := ObtainFile("test.txt")
+	dict := NewDictionary(words, wordFreq, 4, postingLists)
 	for k, v := range wordFreq {
 		word := dict.TermLookup(k)
 		assert.NotEmpty(t, word)
 		assert.Equal(t, v, word.DocFreq)
+		assert.Equal(t, len(dict.PostingLists[word.PostingListPtr].b), len(postingLists[k]))
 	}
 
 }
